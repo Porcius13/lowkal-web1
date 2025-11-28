@@ -1,16 +1,71 @@
-# React + Vite
+# Lowkal - Depop Tarzı Marketplace
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Lowkal, Depop tarzında tasarlanmış modern bir marketplace uygulamasıdır. Kullanıcılar ürün satabilir, alabilir, takas yapabilir ve mesajlaşabilir.
 
-Currently, two official plugins are available:
+## 🚀 Özellikler
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Ürün Listeleme**: Ürünlerinizi kolayca listeleyin
+- **Takas Sistemi**: Ürünlerinizi takas edin
+- **Mesajlaşma**: Satıcılarla doğrudan mesajlaşın
+- **Favoriler**: Beğendiğiniz ürünleri favorilere ekleyin
+- **Profil Yönetimi**: Profilinizi özelleştirin
+- **Arama ve Filtreleme**: Ürünleri kategorilere göre filtreleyin
+- **Responsive Tasarım**: Mobil ve masaüstü uyumlu
 
-## React Compiler
+## 🛠️ Teknolojiler
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 19** - UI framework
+- **Vite** - Build tool
+- **Tailwind CSS** - Styling
+- **LocalStorage** - Veri saklama (Supabase entegrasyonu için hazır)
 
-## Expanding the ESLint configuration
+## 📦 Kurulum
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+# Bağımlılıkları yükle
+npm install
+
+# Geliştirme sunucusunu başlat
+npm run dev
+
+# Production build
+npm run build
+```
+
+## 🌐 Deployment
+
+Bu proje Vercel'de deploy edilebilir:
+
+1. GitHub repository'yi Vercel'e bağla
+2. Build command: `npm run build`
+3. Output directory: `dist`
+4. Framework preset: Vite
+
+## 📱 Kullanım
+
+1. **Kayıt Ol / Giriş Yap**: Hesap oluşturun veya giriş yapın
+2. **Ürün Ekle**: "İLAN VER" butonuna tıklayarak ürün ekleyin
+3. **Keşfet**: Ana sayfada ürünleri görüntüleyin
+4. **Mesajlaş**: Ürün sahipleriyle iletişime geçin
+5. **Takas Yap**: Takas kabul eden ürünlerle takas teklifi yapın
+
+## 🎨 Tasarım
+
+Depop tarzında modern ve minimal bir tasarım:
+- Canlı renk paleti (Electric Blue, Gold, Royal Purple, vb.)
+- Temiz ve kullanıcı dostu arayüz
+- Mobil-first yaklaşım
+
+## 📝 Notlar
+
+- Şu anda veriler LocalStorage'da saklanıyor
+- Supabase entegrasyonu için hazır altyapı mevcut
+- Production için Supabase veya başka bir backend entegrasyonu önerilir
+
+## 👥 Katkıda Bulunma
+
+Katkılarınızı bekliyoruz! Pull request göndermekten çekinmeyin.
+
+## 📄 Lisans
+
+MIT License

@@ -2,6 +2,52 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-slate-950;
+@layer base {
+  body {
+    @apply bg-gold text-black font-sans antialiased;
+  }
+  
+  * {
+    @apply border-neutral-200;
+  }
+}
+
+/* Logo font */
+.logo-text {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+/* Depop-style smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for Depop style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-neutral-50;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-neutral-300 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-neutral-400;
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

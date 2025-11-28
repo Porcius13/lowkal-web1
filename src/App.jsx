@@ -1,26 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
-
-// Sabit kategori ve durum listeleri
-const CATEGORIES = [
-  "Kıyafet",
-  "Ayakkabı",
-  "Kitap",
-  "Elektronik",
-  "Ev",
-  "Aksesuar",
-  "Diğer",
-];
-
-const CONDITIONS = ["Yeni", "Az kullanılmış", "İyi", "Yıpranmış"];
-
-// LocalStorage key'leri (versiyonlanmış)
-const STORAGE_KEYS = {
-  products: "lowkal_products_v4",
-  messages: "lowkal_messages_v2",
-  ui: "lowkal_ui_v5",
-  users: "lowkal_users_v2",
-  currentUser: "lowkal_current_user_v2",
-};
+import { STORAGE_KEYS, CATEGORIES } from "./constants";
+import { formatDate, formatTime } from "./utils/helpers";
+import BottomNav from "./components/BottomNav";
+import NavBar from "./components/NavBar";
+import ProductGrid from "./components/ProductGrid";
+import FiltersBar from "./components/FiltersBar";
+import ProductDetailModal from "./components/ProductDetailModal";
+import ProductFormModal from "./components/ProductFormModal";
+import AuthModal from "./components/AuthModal";
+import MessagePanel from "./components/MessagePanel";
 
 export default function App() {
   // -------------------- AUTH STATE --------------------
@@ -63,8 +51,14 @@ export default function App() {
   const [filterTakasOnly, setFilterTakasOnly] = useState(false);
 
   const [sortMode, setSortMode] = useState("newest"); // "newest" | "priceLow" | "priceHigh"
-  const [mainTab, setMainTab] = useState("home"); // "home" | "messages" | "profile"
+  const [mainTab, setMainTab] = useState("home"); // "home" | "search" | "messages" | "activity" | "profile" | "selling-hub" | "purchases" | "settings" | "resolution"
   const [searchText, setSearchText] = useState("");
+  const [profileSortMode, setProfileSortMode] = useState("newest"); // Profil sayfası için ayrı sıralama
+  const [profileCategoryFilter, setProfileCategoryFilter] = useState(""); // Profil sayfası için kategori filtresi
+  const [profileTab, setProfileTab] = useState("selling"); // "selling" | "likes" | "saves"
+  const [messagesTab, setMessagesTab] = useState("chat"); // "chat" | "offers"
+  const [selectedConversation, setSelectedConversation] = useState(null); // Seçili konuşma
+  const [filterUnread, setFilterUnread] = useState(false); // Okunmamış filtreleme
 
   const [detailProduct, setDetailProduct] = useState(null); // ürün detay modali
 
@@ -85,7 +79,186 @@ export default function App() {
       const savedProducts = JSON.parse(
         localStorage.getItem(STORAGE_KEYS.products)
       );
-      if (Array.isArray(savedProducts)) setProducts(savedProducts);
+      // Eğer localStorage'da ürün yoksa veya boş array ise başlangıç ürünlerini yükle
+      if (Array.isArray(savedProducts) && savedProducts.length > 0) {
+        setProducts(savedProducts);
+      } else {
+        // localStorage'ı temizle (eğer boş array varsa)
+        localStorage.removeItem(STORAGE_KEYS.products);
+        // Başlangıç ürünleri - göstermelik
+        const initialProducts = [
+          {
+            id: 1,
+            title: "Nike Air Max 90",
+            price: 850,
+            category: "Ayakkabı",
+            photo: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&h=400&fit=crop",
+            takas: false,
+            distanceKm: 2.5,
+            ownerId: "demo_user_1",
+            ownerName: "Ahmet Yılmaz",
+            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Az kullanılmış, çok temiz Nike Air Max 90. Kutusu ile birlikte.",
+            condition: "Az kullanılmış",
+          },
+          {
+            id: 2,
+            title: "Vintage Denim Ceket",
+            price: 450,
+            category: "Kıyafet",
+            photo: "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=400&h=400&fit=crop",
+            takas: true,
+            distanceKm: 1.8,
+            ownerId: "demo_user_2",
+            ownerName: "Zeynep Kaya",
+            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Vintage tarzı denim ceket, M beden. Takas kabul edilir.",
+            condition: "İyi",
+          },
+          {
+            id: 3,
+            title: "MacBook Pro 13\" 2020",
+            price: 12000,
+            category: "Elektronik",
+            photo: "https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400&h=400&fit=crop",
+            takas: false,
+            distanceKm: 3.2,
+            ownerId: "demo_user_3",
+            ownerName: "Mehmet Demir",
+            createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "MacBook Pro 13 inç, 256GB SSD, 8GB RAM. Çok iyi durumda.",
+            condition: "Az kullanılmış",
+          },
+          {
+            id: 4,
+            title: "Harry Potter Serisi (7 Kitap)",
+            price: 280,
+            category: "Kitap",
+            photo: "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=400&h=400&fit=crop",
+            takas: true,
+            distanceKm: 0.5,
+            ownerId: "demo_user_4",
+            ownerName: "Ayşe Şahin",
+            createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Harry Potter serisinin tamamı, çok iyi durumda. Takas kabul edilir.",
+            condition: "İyi",
+          },
+          {
+            id: 5,
+            title: "Vintage Kol Saati",
+            price: 1200,
+            category: "Aksesuar",
+            photo: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop",
+            takas: false,
+            distanceKm: 4.1,
+            ownerId: "demo_user_5",
+            ownerName: "Can Özkan",
+            createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Vintage tarzı kol saati, çalışır durumda. Kutusu ile birlikte.",
+            condition: "Az kullanılmış",
+          },
+          {
+            id: 6,
+            title: "Adidas Ultraboost 22",
+            price: 950,
+            category: "Ayakkabı",
+            photo: "https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&h=400&fit=crop",
+            takas: false,
+            distanceKm: 2.3,
+            ownerId: "demo_user_6",
+            ownerName: "Elif Yıldız",
+            createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Adidas Ultraboost 22, 42 numara. Çok az kullanılmış.",
+            condition: "Az kullanılmış",
+          },
+          {
+            id: 7,
+            title: "Vintage Klasik Gitar",
+            price: 1800,
+            category: "Diğer",
+            photo: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=400&fit=crop",
+            takas: true,
+            distanceKm: 1.5,
+            ownerId: "demo_user_7",
+            ownerName: "Burak Arslan",
+            createdAt: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Vintage klasik gitar, çok iyi durumda. Takas kabul edilir.",
+            condition: "İyi",
+          },
+          {
+            id: 8,
+            title: "IKEA Çalışma Masası",
+            price: 650,
+            category: "Ev",
+            photo: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=400&fit=crop",
+            takas: false,
+            distanceKm: 5.2,
+            ownerId: "demo_user_8",
+            ownerName: "Selin Aydın",
+            createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "IKEA çalışma masası, beyaz renk. Montajlı ve kullanıma hazır.",
+            condition: "Az kullanılmış",
+          },
+          {
+            id: 9,
+            title: "Levi's 501 Vintage",
+            price: 380,
+            category: "Kıyafet",
+            photo: "https://images.unsplash.com/photo-1542272604-787c3835535d?w=400&h=400&fit=crop",
+            takas: true,
+            distanceKm: 1.2,
+            ownerId: "demo_user_9",
+            ownerName: "Emre Çelik",
+            createdAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Levi's 501 vintage kot pantolon, 32 beden. Takas kabul edilir.",
+            condition: "İyi",
+          },
+          {
+            id: 10,
+            title: "iPhone 12 Pro",
+            price: 8500,
+            category: "Elektronik",
+            photo: "https://images.unsplash.com/photo-1592750475338-74b7b21085ab?w=400&h=400&fit=crop",
+            takas: false,
+            distanceKm: 2.8,
+            ownerId: "demo_user_10",
+            ownerName: "Deniz Kaya",
+            createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "iPhone 12 Pro, 128GB, Graphite. Kutusu ve şarj aleti ile birlikte.",
+            condition: "Az kullanılmış",
+          },
+          {
+            id: 11,
+            title: "Vintage Deri Çanta",
+            price: 520,
+            category: "Aksesuar",
+            photo: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400&h=400&fit=crop",
+            takas: true,
+            distanceKm: 3.5,
+            ownerId: "demo_user_11",
+            ownerName: "Gizem Yücel",
+            createdAt: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Vintage deri çanta, çok şık. Takas kabul edilir.",
+            condition: "İyi",
+          },
+          {
+            id: 12,
+            title: "Zara Oversized Gömlek",
+            price: 180,
+            category: "Kıyafet",
+            photo: "https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&h=400&fit=crop",
+            takas: false,
+            distanceKm: 0.8,
+            ownerId: "demo_user_12",
+            ownerName: "Kerem Doğan",
+            createdAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
+            description: "Zara oversized gömlek, M beden. Yeni gibi.",
+            condition: "Az kullanılmış",
+          },
+        ];
+        setProducts(initialProducts);
+        localStorage.setItem(STORAGE_KEYS.products, JSON.stringify(initialProducts));
+      }
 
       const savedMessages = JSON.parse(
         localStorage.getItem(STORAGE_KEYS.messages)
@@ -99,7 +272,7 @@ export default function App() {
           setFilterTakasOnly(savedUi.filterTakasOnly);
         if (["newest", "priceLow", "priceHigh"].includes(savedUi.sortMode))
           setSortMode(savedUi.sortMode);
-        if (["home", "messages", "profile"].includes(savedUi.mainTab))
+        if (["home", "search", "messages", "activity", "profile"].includes(savedUi.mainTab))
           setMainTab(savedUi.mainTab);
         if (typeof savedUi.searchText === "string")
           setSearchText(savedUi.searchText);
@@ -157,14 +330,65 @@ export default function App() {
   // -------------------- MEMO DATA --------------------
   const myProducts = useMemo(() => {
     if (!currentUser) return [];
-    return products.filter((p) => p.ownerId === currentUser.id);
-  }, [products, currentUser]);
+    let filtered = products.filter((p) => p.ownerId === currentUser.id);
+    
+    // Kategori filtresi
+    if (profileCategoryFilter) {
+      filtered = filtered.filter((p) => p.category === profileCategoryFilter);
+    }
+    
+    // Sıralama
+    const sorted = [...filtered].sort((a, b) => {
+      if (profileSortMode === "newest") {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tB - tA;
+      }
+      if (profileSortMode === "oldest") {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tA - tB;
+      }
+      if (profileSortMode === "priceLow") {
+        return (a.price || 0) - (b.price || 0);
+      }
+      if (profileSortMode === "priceHigh") {
+        return (b.price || 0) - (a.price || 0);
+      }
+      return 0;
+    });
+    
+    return sorted;
+  }, [products, currentUser, profileCategoryFilter, profileSortMode]);
 
   const favoriteProducts = useMemo(() => {
     if (!currentUser) return [];
     const likedIds = currentUser.likedProductIds || [];
-    return products.filter((p) => likedIds.includes(p.id));
-  }, [products, currentUser]);
+    let filtered = products.filter((p) => likedIds.includes(p.id));
+    
+    // Sıralama (favoriler için de aynı sıralama kullanılabilir)
+    const sorted = [...filtered].sort((a, b) => {
+      if (profileSortMode === "newest") {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tB - tA;
+      }
+      if (profileSortMode === "oldest") {
+        const tA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const tB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return tA - tB;
+      }
+      if (profileSortMode === "priceLow") {
+        return (a.price || 0) - (b.price || 0);
+      }
+      if (profileSortMode === "priceHigh") {
+        return (b.price || 0) - (a.price || 0);
+      }
+      return 0;
+    });
+    
+    return sorted;
+  }, [products, currentUser, profileSortMode]);
 
   const filteredProducts = useMemo(() => {
     const q = searchText.trim().toLowerCase();
@@ -261,30 +485,6 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
-  const formatDate = (isoString) => {
-    if (!isoString) return "";
-    try {
-      return new Date(isoString).toLocaleDateString("tr-TR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "2-digit",
-      });
-    } catch {
-      return "";
-    }
-  };
-
-  const formatTime = (isoString) => {
-    if (!isoString) return "";
-    try {
-      return new Date(isoString).toLocaleTimeString("tr-TR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return "";
-    }
-  };
 
   const requireAuth = (mode = "login") => {
     if (!currentUser) {
@@ -401,7 +601,6 @@ export default function App() {
         setAuthError("E-posta veya şifre hatalı.");
         return;
       }
-      // likedProductIds/bio yoksa boş olarak ekle
       const normalized = {
         ...found,
         bio: found.bio || "",
@@ -597,360 +796,572 @@ export default function App() {
 
   const openConversationFromMessages = (product) => {
     setMainTab("messages");
-    openPanel(product, "message");
+    setSelectedConversation(product);
+    setActiveProduct(product);
+    setPanelMode("message");
+    setInputText("");
   };
 
   // -------------------- UI --------------------
   return (
     <div className="min-h-screen bg-neutral-50 text-neutral-900 flex flex-col">
       {/* TOP NAV */}
-      <header className="border-b border-neutral-200 bg-white">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          {/* Logo + search */}
-          <div className="flex items-center gap-4 flex-1">
-            <div
-              className="flex items-center gap-2 cursor-pointer"
-              onClick={() => setMainTab("home")}
-            >
-              <div className="w-8 h-8 rounded-md bg-black text-white flex items-center justify-center font-black text-lg">
-                L
-              </div>
-              <span className="text-xl font-semibold tracking-tight">
-                lowkal
-              </span>
-            </div>
-            <div className="hidden sm:flex items-center flex-1">
-              <input
-                type="text"
-                placeholder="Ürün, kategori veya açıklama ara"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-full border border-neutral-200 bg-neutral-50 focus:bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900"
-              />
-            </div>
-          </div>
-
-          {/* Auth bölümü */}
-          <div className="flex items-center gap-2">
-            {currentUser ? (
-              <>
-                <span className="hidden sm:inline-flex text-[11px] px-3 py-1.5 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700">
-                  {currentUser.firstName} {currentUser.lastName}
-                </span>
-                <button
-                  onClick={handleResetAll}
-                  className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full border border-neutral-300 text-[11px] text-neutral-600 hover:border-red-400 hover:text-red-500 transition"
-                >
-                  Hepsini sıfırla
-                </button>
-                <button
-                  onClick={() => {
-                    resetForm();
-                    if (!requireAuth("login")) setShowForm(true);
-                  }}
-                  className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black text-white text-xs font-semibold hover:bg-neutral-800 transition"
-                >
-                  + İlan ekle
-                </button>
-                <button
-                  onClick={handleLogout}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full border border-neutral-300 text-[11px] text-neutral-700 hover:border-neutral-500 hover:text-neutral-900 transition"
-                >
-                  Çıkış
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => openAuth("login")}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full border border-neutral-300 text-[11px] text-neutral-700 hover:border-neutral-900 hover:text-neutral-900 transition"
-                >
-                  Giriş
-                </button>
-                <button
-                  onClick={() => openAuth("signup")}
-                  className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full bg-black text-white text-[11px] font-semibold hover:bg-neutral-800 transition"
-                >
-                  Kayıt ol
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <NavBar
+        currentUser={currentUser}
+        searchText={searchText}
+        setSearchText={setSearchText}
+        setMainTab={setMainTab}
+        openAuth={openAuth}
+        handleLogout={handleLogout}
+        handleResetAll={handleResetAll}
+        requireAuth={requireAuth}
+        resetForm={resetForm}
+        setShowForm={setShowForm}
+        conversations={conversations}
+        favoriteProducts={favoriteProducts}
+      />
 
       {/* MAIN CONTENT */}
-      <div className="max-w-6xl mx-auto w-full flex-1 flex flex-col px-3 sm:px-4 py-4 gap-4 pb-20">
+      <div className="max-w-7xl mx-auto w-full flex-1 flex flex-col px-3 sm:px-4 lg:px-6 py-6 gap-6 pb-24">
         {/* HOME TAB */}
         {mainTab === "home" && (
           <>
             {/* Filters */}
-            <section className="w-full flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between">
-              <div className="bg-white border border-neutral-200 rounded-2xl px-4 py-3 flex-1 flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-neutral-500">
-                        Mesafe filtresi
-                      </span>
-                      <span className="text-xs font-medium text-neutral-800">
-                        {radius} km içinde
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={10}
-                      step={1}
-                      value={radius}
-                      onChange={(e) => setRadius(Number(e.target.value))}
-                      className="w-full accent-black"
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => setFilterTakasOnly((v) => !v)}
-                    className={`px-3 py-2 rounded-full border text-xs font-medium transition ${
-                      filterTakasOnly
-                        ? "bg-neutral-900 text-white border-neutral-900"
-                        : "bg-white text-neutral-700 border-neutral-300 hover:border-neutral-800"
-                    }`}
-                  >
-                    {filterTakasOnly
-                      ? "Sadece takas"
-                      : "Takas açık ürünleri filtrele"}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 text-[11px]">
-                  <span className="text-neutral-500">Sırala</span>
-                  <select
-                    value={sortMode}
-                    onChange={(e) => setSortMode(e.target.value)}
-                    className="flex-1 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-[11px] focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                  >
-                    <option value="newest">En yeni</option>
-                    <option value="priceLow">Fiyat (artan)</option>
-                    <option value="priceHigh">Fiyat (azalan)</option>
-                  </select>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  resetForm();
-                  if (!requireAuth("login")) setShowForm(true);
-                }}
-                className="sm:hidden inline-flex items-center justify-center px-4 py-2 rounded-full bg-black text-white text-xs font-semibold w-full"
-              >
-                + İlan ekle
-              </button>
-            </section>
-
-            {/* Mobile search */}
-            <div className="sm:hidden">
-              <input
-                type="text"
-                placeholder="Ürün, kategori veya açıklama ara"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="w-full text-xs px-3 py-2 rounded-full border border-neutral-200 bg-white focus:outline-none focus:ring-1 focus:ring-neutral-900"
-              />
-            </div>
+            <FiltersBar
+              radius={radius}
+              setRadius={setRadius}
+              filterTakasOnly={filterTakasOnly}
+              setFilterTakasOnly={setFilterTakasOnly}
+              sortMode={sortMode}
+              setSortMode={setSortMode}
+              searchText={searchText}
+              setSearchText={setSearchText}
+              requireAuth={requireAuth}
+              resetForm={resetForm}
+              setShowForm={setShowForm}
+            />
 
             {/* Product grid */}
             <main className="w-full flex-1">
-              {filteredProducts.length === 0 ? (
-                <div className="mt-16 text-center text-sm text-neutral-500">
-                  <p>Bu filtrelerle ürün yok gibi.</p>
-                  <p className="mt-1">
-                    Filtreleri temizleyerek veya yeni ilan ekleyerek
-                    başlayabilirsin.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                  {filteredProducts.map((p) => {
-                    const isMine =
-                      currentUser &&
-                      p.ownerId &&
-                      p.ownerId === currentUser.id;
-                    const liked = isProductLiked(p.id);
-
-                    return (
-                      <article
-                        key={p.id}
-                        className="bg-white border border-neutral-200 rounded-2xl overflow-hidden flex flex-col hover:shadow-sm hover:border-neutral-400 transition cursor-pointer"
-                        onClick={() => setDetailProduct(p)}
-                      >
-                        <div className="relative">
-                          <img
-                            src={p.photo}
-                            alt={p.title}
-                            className="w-full aspect-[3/4] object-cover"
-                          />
-                          <div className="absolute top-2 left-2 text-[10px] px-2 py-1 rounded-full bg-white/90 text-neutral-800 border border-neutral-200">
-                            {p.distanceKm.toFixed(1)} km
-                          </div>
-                          {p.takas && (
-                            <div className="absolute top-2 right-2 text-[10px] px-2 py-1 rounded-full bg-neutral-900 text-white font-semibold">
-                              Takas
-                            </div>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFavorite(p.id);
-                            }}
-                            className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-white/90 border border-neutral-200 flex items-center justify-center text-[13px] hover:border-neutral-700"
-                          >
-                            {liked ? "♥" : "♡"}
-                          </button>
-                          {p.ownerName && (
-                            <div className="absolute bottom-2 left-2 text-[10px] px-2 py-1 rounded-full bg-white/90 text-neutral-800 border border-neutral-200">
-                              {p.ownerName}
-                            </div>
-                          )}
-
-                          {isMine && (
-                            <div className="absolute top-2 right-2 mt-7 flex flex-col gap-1 text-[10px]">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditProduct(p);
-                                }}
-                                className="px-2 py-1 rounded-full bg-white/90 border border-neutral-300 text-neutral-800 hover:border-neutral-600"
-                              >
-                                Düzenle
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteProduct(p.id);
-                                }}
-                                className="px-2 py-1 rounded-full bg-red-500 text-white hover:bg-red-400"
-                              >
-                                Sil
-                              </button>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="p-2.5 flex-1 flex flex-col">
-                          <h3 className="text-xs font-medium line-clamp-2 mb-1">
-                            {p.title}
-                          </h3>
-                          <p className="text-sm font-semibold text-neutral-900 mb-0.5">
-                            {p.price} TL
-                          </p>
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] text-neutral-500">
-                              {p.category}
-                              {p.condition ? ` • ${p.condition}` : ""}
-                            </p>
-                            {p.createdAt && (
-                              <p className="text-[10px] text-neutral-400">
-                                {formatDate(p.createdAt)}
-                              </p>
-                            )}
-                          </div>
-
-                          {p.description && (
-                            <p className="text-[10px] text-neutral-500 line-clamp-2 mb-1">
-                              {p.description}
-                            </p>
-                          )}
-
-                          <div className="mt-auto flex gap-1 text-[10px]">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openPanel(p, "message");
-                              }}
-                              className="flex-1 px-2 py-1 rounded-full bg-neutral-100 text-neutral-800 border border-neutral-200 hover:border-neutral-500"
-                            >
-                              Mesaj
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openPanel(p, "offer");
-                              }}
-                              className="flex-1 px-2 py-1 rounded-full bg-neutral-900 text-white hover:bg-neutral-700"
-                            >
-                              Teklif
-                            </button>
-                            {p.takas && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openPanel(p, "takas");
-                                }}
-                                className="hidden sm:flex flex-1 px-2 py-1 rounded-full bg-white text-neutral-900 border border-neutral-300 hover:border-neutral-700"
-                              >
-                                Takas
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
+              <ProductGrid
+                products={filteredProducts}
+                currentUser={currentUser}
+                isProductLiked={isProductLiked}
+                toggleFavorite={toggleFavorite}
+                setDetailProduct={setDetailProduct}
+                handleEditProduct={handleEditProduct}
+                handleDeleteProduct={handleDeleteProduct}
+                openPanel={openPanel}
+              />
             </main>
           </>
         )}
 
+        {/* SEARCH TAB */}
+        {mainTab === "search" && (
+          <main className="w-full flex-1">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-black mb-2">🔍 Ara</h2>
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Ürün, kategori veya açıklama ara..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="w-full text-sm px-4 py-3 pl-12 rounded-xl border border-neutral-300 bg-white focus:outline-none focus:ring-2 focus:ring-electric focus:border-electric transition-all"
+                />
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-400 text-lg">
+                  🔍
+                </span>
+              </div>
+            </div>
+
+            {/* Kategoriler */}
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-black mb-3">Kategoriler</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setSearchText(cat);
+                      setMainTab("home");
+                    }}
+                    className="px-4 py-3 rounded-xl bg-white/90 backdrop-blur-sm border border-neutral-200 text-sm font-medium text-black hover:border-electric hover:bg-electric/5 transition text-center"
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtreler */}
+            <div className="mb-6">
+              <FiltersBar
+                radius={radius}
+                setRadius={setRadius}
+                filterTakasOnly={filterTakasOnly}
+                setFilterTakasOnly={setFilterTakasOnly}
+                sortMode={sortMode}
+                setSortMode={setSortMode}
+                searchText={searchText}
+                setSearchText={setSearchText}
+                requireAuth={requireAuth}
+                resetForm={resetForm}
+                setShowForm={setShowForm}
+              />
+            </div>
+
+            {/* Sonuçlar */}
+            <div>
+              <h3 className="text-sm font-semibold text-black mb-3">
+                Sonuçlar ({filteredProducts.length})
+              </h3>
+              <ProductGrid
+                products={filteredProducts}
+                currentUser={currentUser}
+                isProductLiked={isProductLiked}
+                toggleFavorite={toggleFavorite}
+                setDetailProduct={setDetailProduct}
+                handleEditProduct={handleEditProduct}
+                handleDeleteProduct={handleDeleteProduct}
+                openPanel={openPanel}
+              />
+            </div>
+          </main>
+        )}
+
         {/* MESSAGES TAB */}
         {mainTab === "messages" && (
-          <main className="w-full flex-1">
-            <h2 className="text-sm font-semibold mb-3">Mesajlar</h2>
+          <main className="w-full flex-1 bg-white flex flex-col h-full">
             {!currentUser ? (
-              <div className="mt-8 text-center text-sm text-neutral-500">
-                <p>Mesajlarını görmek için giriş yapmalısın.</p>
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-neutral-500 mb-4">
+                    Mesajlarını görmek için giriş yapmalısın.
+                  </p>
+                  <button
+                    onClick={() => openAuth("login")}
+                    className="px-6 py-2.5 rounded-full bg-electric text-white text-sm font-semibold hover:bg-electric/90 transition shadow-sm"
+                  >
+                    Giriş yap
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col h-full">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-4 border-b border-neutral-200">
+                  <h1 className="text-xl font-bold text-black">Messages</h1>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        // Refresh conversations
+                        setSelectedConversation(null);
+                      }}
+                      className="p-2 hover:bg-neutral-100 rounded-lg transition"
+                      title="Refresh"
+                    >
+                      <svg
+                        className="w-5 h-5 text-black"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setFilterUnread(!filterUnread)}
+                      className={`p-2 hover:bg-neutral-100 rounded-lg transition ${
+                        filterUnread ? "bg-neutral-100" : ""
+                      }`}
+                      title="Filter by unread"
+                    >
+                      <svg
+                        className="w-5 h-5 text-black"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Main Content - Two Column Layout */}
+                <div className="flex-1 flex overflow-hidden">
+                  {/* Left Sidebar - Conversation List */}
+                  <div className="w-full sm:w-80 border-r border-neutral-200 flex flex-col">
+                    {/* Tabs */}
+                    <div className="flex items-center border-b border-neutral-200">
+                      <button
+                        onClick={() => {
+                          setMessagesTab("chat");
+                          setSelectedConversation(null);
+                        }}
+                        className={`flex-1 py-3 px-4 text-sm font-medium transition relative ${
+                          messagesTab === "chat"
+                            ? "text-black"
+                            : "text-neutral-500 hover:text-black"
+                        }`}
+                      >
+                        Chat
+                        {messagesTab === "chat" && (
+                          <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"></span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setMessagesTab("offers");
+                          setSelectedConversation(null);
+                        }}
+                        className={`flex-1 py-3 px-4 text-sm font-medium transition relative ${
+                          messagesTab === "offers"
+                            ? "text-black"
+                            : "text-neutral-500 hover:text-black"
+                        }`}
+                      >
+                        Offers
+                        {messagesTab === "offers" && (
+                          <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"></span>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Conversation List */}
+                    <div className="flex-1 overflow-y-auto">
+                      {conversations.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-neutral-500">
+                          <p>Henüz hiç mesajın yok.</p>
+                        </div>
+                      ) : (
+                        <div>
+                          {conversations
+                            .filter((conv) => {
+                              if (messagesTab === "offers") {
+                                return (
+                                  conv.lastMessage.type === "offer" ||
+                                  conv.lastMessage.type === "takas"
+                                );
+                              }
+                              return conv.lastMessage.type === "message";
+                            })
+                            .map(({ product, lastMessage }) => {
+                              const isSelected =
+                                selectedConversation?.id === product.id;
+                              const ownerName = product.ownerName || "Unknown";
+                              const ownerInitials =
+                                ownerName
+                                  .split(" ")
+                                  .map((n) => n[0])
+                                  .join("")
+                                  .toUpperCase()
+                                  .slice(0, 2) || "U";
+
+                              return (
+                                <button
+                                  key={product.id}
+                                  onClick={() => {
+                                    setSelectedConversation(product);
+                                    setActiveProduct(product);
+                                    setPanelMode("message");
+                                    setInputText("");
+                                  }}
+                                  className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-neutral-50 transition text-left border-b border-neutral-100 ${
+                                    isSelected ? "bg-neutral-50" : ""
+                                  }`}
+                                >
+                                  {/* Avatar */}
+                                  <div className="relative flex-shrink-0">
+                                    <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center">
+                                      <span className="text-white text-sm font-bold">
+                                        {ownerInitials}
+                                      </span>
+                                    </div>
+                                    <div className="absolute bottom-0 right-0 w-3 h-3 bg-blue-500 rounded-full border-2 border-white"></div>
+                                  </div>
+
+                                  {/* Content */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <span className="text-sm font-bold text-black truncate">
+                                        {ownerName}
+                                      </span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          // Menu action
+                                        }}
+                                        className="text-neutral-400 hover:text-black p-1"
+                                      >
+                                        <svg
+                                          className="w-4 h-4"
+                                          fill="currentColor"
+                                          viewBox="0 0 20 20"
+                                        >
+                                          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                    <p className="text-xs text-neutral-500 mb-1">
+                                      @{ownerName.toLowerCase().replace(/\s+/g, "")}
+                                    </p>
+                                    <div className="flex items-center justify-between gap-2">
+                                      <p className="text-xs text-neutral-500 truncate">
+                                        {formatDate(lastMessage.createdAt)} •{" "}
+                                        {lastMessage.text.length > 30
+                                          ? lastMessage.text.substring(0, 30) +
+                                            "..."
+                                          : lastMessage.text}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Right Content - Message Display */}
+                  <div className="flex-1 flex items-center justify-center bg-white">
+                    {selectedConversation ? (
+                      <div className="w-full h-full flex flex-col">
+                        {/* Message Header */}
+                        <div className="border-b border-neutral-200 p-4">
+                          <h2 className="text-lg font-bold text-black">
+                            {selectedConversation.title}
+                          </h2>
+                          <p className="text-sm text-neutral-500">
+                            {selectedConversation.ownerName}
+                          </p>
+                        </div>
+
+                        {/* Messages */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                          {activeMessages.length === 0 ? (
+                            <div className="text-center text-neutral-500 py-8">
+                              <p className="text-sm">No messages yet</p>
+                              <p className="text-xs mt-1">
+                                Start the conversation
+                              </p>
+                            </div>
+                          ) : (
+                            activeMessages.map((m) => (
+                              <div
+                                key={m.id}
+                                className={`flex ${
+                                  m.author ===
+                                  `${currentUser.firstName} ${currentUser.lastName}`
+                                    ? "justify-end"
+                                    : "justify-start"
+                                }`}
+                              >
+                                <div
+                                  className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                                    m.author ===
+                                    `${currentUser.firstName} ${currentUser.lastName}`
+                                      ? "bg-electric text-white"
+                                      : "bg-neutral-100 text-black"
+                                  }`}
+                                >
+                                  <p className="text-sm">{m.text}</p>
+                                  <p
+                                    className={`text-xs mt-1 ${
+                                      m.author ===
+                                      `${currentUser.firstName} ${currentUser.lastName}`
+                                        ? "text-white/70"
+                                        : "text-neutral-500"
+                                    }`}
+                                  >
+                                    {formatTime(m.createdAt)}
+                                  </p>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+
+                        {/* Input Area */}
+                        <div className="border-t border-neutral-200 p-4">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              placeholder="Type a message..."
+                              value={inputText}
+                              onChange={(e) => setInputText(e.target.value)}
+                              onKeyPress={(e) => {
+                                if (e.key === "Enter") {
+                                  sendInteraction();
+                                }
+                              }}
+                              className="flex-1 px-4 py-2 rounded-lg bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-2 focus:ring-electric"
+                            />
+                            <button
+                              onClick={() => {
+                                if (selectedConversation) {
+                                  setActiveProduct(selectedConversation);
+                                  setPanelMode("message");
+                                  sendInteraction();
+                                }
+                              }}
+                              className="px-6 py-2 bg-black text-white rounded-lg text-sm font-semibold hover:bg-neutral-800 transition"
+                            >
+                              Send
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center">
+                        <svg
+                          className="w-24 h-24 text-neutral-300 mx-auto mb-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <h2 className="text-xl font-bold text-black mb-2">
+                          Your Messages
+                        </h2>
+                        <p className="text-sm text-neutral-500">
+                          Send private messages to other Lowkal users
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+        )}
+
+        {/* ACTIVITY TAB */}
+        {mainTab === "activity" && (
+          <main className="w-full flex-1">
+            <h2 className="text-xl font-bold text-black mb-4">⚡ Etkinlikler</h2>
+            {!currentUser ? (
+              <div className="mt-16 text-center">
+                <div className="w-20 h-20 rounded-full bg-electric/10 mx-auto mb-4 flex items-center justify-center">
+                  <span className="text-4xl">⚡</span>
+                </div>
+                <p className="text-base font-semibold text-black mb-2">
+                  Etkinliklerini görmek için giriş yap
+                </p>
+                <p className="text-sm text-neutral-600 mb-4">
+                  Beğeniler, mesajlar ve diğer etkileşimler burada görünecek.
+                </p>
                 <button
                   onClick={() => openAuth("login")}
-                  className="mt-3 px-4 py-2 rounded-full bg-black text-white text-xs font-semibold hover:bg-neutral-800"
+                  className="px-6 py-2.5 rounded-full bg-electric text-white text-sm font-semibold hover:bg-electric/90 transition shadow-sm"
                 >
                   Giriş yap
                 </button>
               </div>
-            ) : conversations.length === 0 ? (
-              <div className="mt-8 text-center text-sm text-neutral-500">
-                <p>Henüz hiç mesajın yok.</p>
-                <p className="mt-1">
-                  Birkaç ilana mesaj atarak burayı doldurabilirsin.
-                </p>
-              </div>
             ) : (
-              <div className="space-y-2">
-                {conversations.map(({ product, lastMessage }) => (
-                  <button
-                    key={product.id}
-                    onClick={() => openConversationFromMessages(product)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-2xl bg-white border border-neutral-200 hover:border-neutral-400 text-left"
-                  >
-                    <img
-                      src={product.photo}
-                      alt={product.title}
-                      className="w-12 h-12 rounded-xl object-cover border border-neutral-200"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium truncate">
-                          {product.title}
-                        </span>
-                        <span className="text-[10px] text-neutral-400">
-                          {formatTime(lastMessage.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-neutral-500 line-clamp-1">
-                        {lastMessage.text}
+              <div className="space-y-4">
+                {/* İstatistikler */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-electric mb-1">
+                      {favoriteProducts.length}
+                    </p>
+                    <p className="text-xs text-neutral-600">Favoriler</p>
+                  </div>
+                  <div className="bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-royal mb-1">
+                      {conversations.length}
+                    </p>
+                    <p className="text-xs text-neutral-600">Mesajlar</p>
+                  </div>
+                  <div className="bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-xl p-4 text-center">
+                    <p className="text-2xl font-bold text-gold mb-1">
+                      {myProducts.length}
+                    </p>
+                    <p className="text-xs text-neutral-600">İlanlarım</p>
+                  </div>
+                </div>
+
+                {/* Son Etkinlikler */}
+                <div className="bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-black mb-3">Son Etkinlikler</h3>
+                  {messages.length === 0 && favoriteProducts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-neutral-500 mb-2">
+                        Henüz etkinlik yok
+                      </p>
+                      <p className="text-xs text-neutral-400">
+                        Ürün beğenerek veya mesaj göndererek başlayabilirsin.
                       </p>
                     </div>
-                  </button>
-                ))}
+                  ) : (
+                    <div className="space-y-3">
+                      {/* Son mesajlar */}
+                      {conversations.slice(0, 5).map(({ product, lastMessage }) => (
+                        <div
+                          key={product.id}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-50 transition cursor-pointer"
+                          onClick={() => openConversationFromMessages(product)}
+                        >
+                          <img
+                            src={product.photo}
+                            alt={product.title}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-black truncate">
+                              {product.title}
+                            </p>
+                            <p className="text-[10px] text-neutral-500 truncate">
+                              {lastMessage.text}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-neutral-400">
+                            {formatTime(lastMessage.createdAt)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Popüler Kategoriler */}
+                <div className="bg-white/90 backdrop-blur-sm border border-neutral-200 rounded-xl p-4">
+                  <h3 className="text-sm font-semibold text-black mb-3">Popüler Kategoriler</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.slice(0, 6).map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setSearchText(cat);
+                          setMainTab("search");
+                        }}
+                        className="px-3 py-1.5 rounded-full bg-neutral-100 text-black text-xs font-medium hover:bg-electric hover:text-white transition"
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </main>
@@ -958,203 +1369,644 @@ export default function App() {
 
         {/* PROFILE TAB */}
         {mainTab === "profile" && (
-          <main className="w-full flex-1">
-            <h2 className="text-sm font-semibold mb-3">Profil</h2>
+          <main className="w-full flex-1 bg-white">
             {!currentUser ? (
-              <div className="mt-8 text-center text-sm text-neutral-500">
-                <p>Profilini görmek için giriş yap veya kayıt ol.</p>
-                <div className="mt-3 flex items-center justify-center gap-2">
+              <div className="mt-16 text-center">
+                <div className="w-24 h-24 rounded-full bg-neutral-200 mx-auto mb-4 flex items-center justify-center">
+                  <span className="text-5xl">👤</span>
+                </div>
+                <h2 className="text-xl font-bold text-black mb-2">Profiline Hoş Geldin</h2>
+                <p className="text-sm text-neutral-600 mb-6 max-w-md mx-auto">
+                  Profilini görmek ve ilan vermek için giriş yap veya kayıt ol.
+                </p>
+                <div className="flex items-center justify-center gap-3">
                   <button
                     onClick={() => openAuth("login")}
-                    className="px-4 py-2 rounded-full border border-neutral-300 text-xs text-neutral-800 hover:border-neutral-800"
+                    className="px-6 py-2.5 rounded-full border-2 border-neutral-300 text-sm font-medium text-black hover:border-electric hover:text-electric transition"
                   >
                     Giriş yap
                   </button>
                   <button
                     onClick={() => openAuth("signup")}
-                    className="px-4 py-2 rounded-full bg-black text-white text-xs font-semibold hover:bg-neutral-800"
+                    className="px-6 py-2.5 rounded-full bg-electric text-white text-sm font-semibold hover:bg-electric/90 transition shadow-sm"
                   >
                     Kayıt ol
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="space-y-5">
-                {/* Profil bilgileri */}
-                <section className="bg-white border border-neutral-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-4">
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xl font-semibold">
-                      {currentUser.firstName?.[0]}
-                      {currentUser.lastName?.[0]}
+              <div className="w-full max-w-4xl mx-auto">
+                {/* Profile Header - Depop Style */}
+                <section className="px-4 pt-6 pb-4">
+                  <div className="flex items-start gap-4">
+                    {/* Avatar */}
+                    <div className="w-16 h-16 rounded-full bg-neutral-300 flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xl font-bold">
+                        {currentUser.firstName?.[0]?.toUpperCase()}
+                        {currentUser.lastName?.[0]?.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* User Info */}
+                    <div className="flex-1 min-w-0">
+                      {/* Username */}
+                      <h1 className="text-xl font-bold text-black mb-1">
+                        {currentUser.firstName?.toLowerCase()}{currentUser.lastName?.toLowerCase()}
+                      </h1>
+
+                      {/* Rating */}
+                      <div className="flex items-center gap-1 mb-1">
+                        {[...Array(5)].map((_, i) => (
+                          <svg
+                            key={i}
+                            className="w-4 h-4 text-neutral-300"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                          </svg>
+                        ))}
+                        <span className="text-sm text-neutral-500 ml-1">(0)</span>
+                      </div>
+
+                      {/* Active Status */}
+                      <p className="text-sm text-neutral-500 mb-2">Active today</p>
+
+                      {/* Followers/Following */}
+                      <div className="flex items-center gap-4 mb-2">
+                        <span className="text-base font-bold text-black">0 Followers</span>
+                        <span className="text-base font-bold text-black">0 Following</span>
+                      </div>
+
+                      {/* Shop Name */}
+                      <p className="text-base font-bold text-black">
+                        {currentUser.firstName} {currentUser.lastName}'s shop
+                      </p>
                     </div>
                   </div>
-                  <div className="flex-1 space-y-2 text-sm">
-                    <div>
-                      <p className="font-semibold">
-                        {currentUser.firstName} {currentUser.lastName}
-                      </p>
-                      <p className="text-xs text-neutral-500">
-                        {currentUser.email}
-                      </p>
-                    </div>
-                    <div>
-                      <label className="text-[11px] text-neutral-500 block mb-1">
-                        Kısa bio
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={profileBio}
-                        onChange={(e) => setProfileBio(e.target.value)}
-                        placeholder="Kendini kısaca tanıt (örn: Bilgisayar müh öğrencisi, M beden giyim satıyorum vs.)"
-                        className="w-full text-xs px-3 py-2 rounded-2xl bg-neutral-50 border border-neutral-200 focus:outline-none focus:ring-1 focus:ring-neutral-900 resize-none"
-                      />
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-neutral-500">
-                      <span>
-                        Üyelik: {formatDate(currentUser.createdAt) || "-"}
-                      </span>
-                      <span>İlan sayısı: {myProducts.length}</span>
-                    </div>
+                </section>
+
+                {/* Navigation Tabs */}
+                <section className="border-b border-neutral-200">
+                  <div className="flex items-center gap-6 px-4">
                     <button
-                      onClick={handleProfileSave}
-                      className="mt-1 inline-flex px-4 py-1.5 rounded-full bg-black text-white text-xs font-semibold hover:bg-neutral-800"
+                      onClick={() => setProfileTab("selling")}
+                      className={`pb-3 px-1 text-sm font-medium transition relative ${
+                        profileTab === "selling"
+                          ? "text-black"
+                          : "text-neutral-500 hover:text-black"
+                      }`}
                     >
-                      Profili kaydet
+                      Selling
+                      {profileTab === "selling" && (
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"></span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setProfileTab("likes")}
+                      className={`pb-3 px-1 text-sm font-medium transition relative ${
+                        profileTab === "likes"
+                          ? "text-black"
+                          : "text-neutral-500 hover:text-black"
+                      }`}
+                    >
+                      Likes
+                      {profileTab === "likes" && (
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"></span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setProfileTab("saves")}
+                      className={`pb-3 px-1 text-sm font-medium transition relative ${
+                        profileTab === "saves"
+                          ? "text-black"
+                          : "text-neutral-500 hover:text-black"
+                      }`}
+                    >
+                      Saves
+                      {profileTab === "saves" && (
+                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-black"></span>
+                      )}
                     </button>
                   </div>
                 </section>
 
-                {/* Benim ilanlarım */}
-                <section className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold text-neutral-700">
-                      İlanların
-                    </h3>
+                {/* Content Area */}
+                <section className="px-4 py-8">
+                  {profileTab === "selling" && (
+                    <>
+                      {myProducts.length === 0 ? (
+                        <div className="bg-white border border-neutral-200 rounded-lg p-12 text-center max-w-md mx-auto">
+                          {/* T-shirt icon with plus */}
+                          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center relative">
+                            <svg
+                              className="w-16 h-16 text-neutral-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                              />
+                            </svg>
+                            <div className="absolute bottom-0 right-0 w-5 h-5 bg-black rounded-full flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">+</span>
+                            </div>
+                          </div>
+                          <p className="text-sm text-neutral-500 mb-6">
+                            Start selling today and turn your clothes into cash
+                          </p>
+                          <button
+                            onClick={() => {
+                              resetForm();
+                              if (!requireAuth("login")) setShowForm(true);
+                            }}
+                            className="w-full bg-black text-white py-3 rounded-lg text-sm font-semibold hover:bg-neutral-800 transition"
+                          >
+                            List an item
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                          {myProducts.map((p) => {
+                            const isMine = currentUser && p.ownerId && p.ownerId === currentUser.id;
+                            const liked = isProductLiked(p.id);
+                            return (
+                              <ProductCard
+                                key={p.id}
+                                product={p}
+                                currentUser={currentUser}
+                                isLiked={liked}
+                                isMine={isMine}
+                                onFavoriteToggle={() => toggleFavorite(p.id)}
+                                onDetailClick={() => setDetailProduct(p)}
+                                onEditClick={() => handleEditProduct(p)}
+                                onDeleteClick={() => handleDeleteProduct(p.id)}
+                                onMessageClick={() => openPanel(p, "message")}
+                                onOfferClick={() => openPanel(p, "offer")}
+                                onTakasClick={() => openPanel(p, "takas")}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {profileTab === "likes" && (
+                    <>
+                      {favoriteProducts.length === 0 ? (
+                        <div className="bg-white border border-neutral-200 rounded-lg p-12 text-center max-w-md mx-auto">
+                          <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                            <svg
+                              className="w-16 h-16 text-neutral-400"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={1.5}
+                                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                              />
+                            </svg>
+                          </div>
+                          <p className="text-sm text-neutral-500 mb-6">
+                            Beğendiğin ürünler burada görünecek
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                          {favoriteProducts.map((p) => {
+                            const isMine = currentUser && p.ownerId && p.ownerId === currentUser.id;
+                            const liked = isProductLiked(p.id);
+                            return (
+                              <ProductCard
+                                key={p.id}
+                                product={p}
+                                currentUser={currentUser}
+                                isLiked={liked}
+                                isMine={isMine}
+                                onFavoriteToggle={() => toggleFavorite(p.id)}
+                                onDetailClick={() => setDetailProduct(p)}
+                                onEditClick={() => handleEditProduct(p)}
+                                onDeleteClick={() => handleDeleteProduct(p.id)}
+                                onMessageClick={() => openPanel(p, "message")}
+                                onOfferClick={() => openPanel(p, "offer")}
+                                onTakasClick={() => openPanel(p, "takas")}
+                              />
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {profileTab === "saves" && (
+                    <>
+                      <div className="bg-white border border-neutral-200 rounded-lg p-12 text-center max-w-md mx-auto">
+                        <div className="w-16 h-16 mx-auto mb-4 flex items-center justify-center">
+                          <svg
+                            className="w-16 h-16 text-neutral-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={1.5}
+                              d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"
+                            />
+                          </svg>
+                        </div>
+                        <p className="text-sm text-neutral-500 mb-6">
+                          Kaydettiğin ürünler burada görünecek
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </section>
+              </div>
+            )}
+          </main>
+        )}
+
+        {/* SELLING HUB TAB */}
+        {mainTab === "selling-hub" && (
+          <main className="w-full flex-1 bg-white">
+            {!currentUser ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-neutral-500 mb-4">
+                    Satış merkezini görmek için giriş yapmalısın.
+                  </p>
+                  <button
+                    onClick={() => openAuth("login")}
+                    className="px-6 py-2.5 rounded-full bg-electric text-white text-sm font-semibold hover:bg-electric/90 transition shadow-sm"
+                  >
+                    Giriş yap
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-4xl mx-auto px-4 py-6">
+                <h1 className="text-2xl font-bold text-black mb-6">Your Selling Hub</h1>
+
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                  <div className="bg-white border border-neutral-200 rounded-lg p-4">
+                    <p className="text-sm text-neutral-500 mb-1">Active Listings</p>
+                    <p className="text-3xl font-bold text-black">{myProducts.length}</p>
+                  </div>
+                  <div className="bg-white border border-neutral-200 rounded-lg p-4">
+                    <p className="text-sm text-neutral-500 mb-1">Total Sales</p>
+                    <p className="text-3xl font-bold text-black">0</p>
+                  </div>
+                  <div className="bg-white border border-neutral-200 rounded-lg p-4">
+                    <p className="text-sm text-neutral-500 mb-1">Earnings</p>
+                    <p className="text-3xl font-bold text-black">0 TL</p>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="mb-8">
+                  <h2 className="text-lg font-bold text-black mb-4">Quick Actions</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button
                       onClick={() => {
                         resetForm();
                         if (!requireAuth("login")) setShowForm(true);
                       }}
-                      className="inline-flex items-center px-3 py-1.5 rounded-full border border-neutral-300 text-[11px] text-neutral-800 hover:border-neutral-800"
+                      className="bg-black text-white px-6 py-4 rounded-lg text-left hover:bg-neutral-800 transition"
                     >
-                      + Yeni ilan
+                      <p className="font-semibold mb-1">List a new item</p>
+                      <p className="text-sm text-neutral-300">Add a product to your shop</p>
+                    </button>
+                    <button
+                      onClick={() => setMainTab("messages")}
+                      className="bg-neutral-100 text-black px-6 py-4 rounded-lg text-left hover:bg-neutral-200 transition border border-neutral-200"
+                    >
+                      <p className="font-semibold mb-1">View messages</p>
+                      <p className="text-sm text-neutral-600">Check your conversations</p>
                     </button>
                   </div>
+                </div>
 
+                {/* Recent Listings */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-bold text-black">Your Listings</h2>
+                    <button
+                      onClick={() => setMainTab("profile")}
+                      className="text-sm text-neutral-600 hover:text-black transition"
+                    >
+                      View all →
+                    </button>
+                  </div>
                   {myProducts.length === 0 ? (
-                    <p className="text-[12px] text-neutral-500 mt-2">
-                      Henüz hiç ilan eklemedin. Gardırobunu, kitaplığını veya
-                      elektroniklerini listeleyerek başlayabilirsin.
-                    </p>
+                    <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-12 text-center">
+                      <p className="text-sm text-neutral-500 mb-4">
+                        You haven't listed any items yet
+                      </p>
+                      <button
+                        onClick={() => {
+                          resetForm();
+                          if (!requireAuth("login")) setShowForm(true);
+                        }}
+                        className="px-6 py-2.5 bg-black text-white rounded-lg text-sm font-semibold hover:bg-neutral-800 transition"
+                      >
+                        List your first item
+                      </button>
+                    </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                      {myProducts.map((p) => (
-                        <article
-                          key={p.id}
-                          className="bg-white border border-neutral-200 rounded-2xl overflow-hidden flex flex-col hover:shadow-sm hover:border-neutral-400 transition cursor-pointer"
-                          onClick={() => setDetailProduct(p)}
-                        >
-                          <img
-                            src={p.photo}
-                            alt={p.title}
-                            className="w-full aspect-[3/4] object-cover"
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {myProducts.slice(0, 8).map((p) => {
+                        const isMine = currentUser && p.ownerId && p.ownerId === currentUser.id;
+                        const liked = isProductLiked(p.id);
+                        return (
+                          <ProductCard
+                            key={p.id}
+                            product={p}
+                            currentUser={currentUser}
+                            isLiked={liked}
+                            isMine={isMine}
+                            onFavoriteToggle={() => toggleFavorite(p.id)}
+                            onDetailClick={() => setDetailProduct(p)}
+                            onEditClick={() => handleEditProduct(p)}
+                            onDeleteClick={() => handleDeleteProduct(p.id)}
+                            onMessageClick={() => openPanel(p, "message")}
+                            onOfferClick={() => openPanel(p, "offer")}
+                            onTakasClick={() => openPanel(p, "takas")}
                           />
-                          <div className="p-2.5 flex-1 flex flex-col">
-                            <h4 className="text-[11px] font-medium line-clamp-2 mb-1">
-                              {p.title}
-                            </h4>
-                            <p className="text-xs font-semibold text-neutral-900 mb-0.5">
-                              {p.price} TL
-                            </p>
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[10px] text-neutral-500">
-                                {p.category}
-                                {p.condition ? ` • ${p.condition}` : ""}
-                              </p>
-                              {p.createdAt && (
-                                <p className="text-[10px] text-neutral-400">
-                                  {formatDate(p.createdAt)}
-                                </p>
-                              )}
-                            </div>
-                            <div className="mt-auto flex gap-1 text-[10px]">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEditProduct(p);
-                                }}
-                                className="flex-1 px-2 py-1 rounded-full bg-neutral-100 text-neutral-800 border border-neutral-200 hover:border-neutral-500"
-                              >
-                                Düzenle
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteProduct(p.id);
-                                }}
-                                className="flex-1 px-2 py-1 rounded-full bg-red-500 text-white hover:bg-red-400"
-                              >
-                                Sil
-                              </button>
-                            </div>
-                          </div>
-                        </article>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
-                </section>
+                </div>
+              </div>
+            )}
+          </main>
+        )}
 
-                {/* Favoriler */}
-                <section className="space-y-2">
-                  <h3 className="text-xs font-semibold text-neutral-700">
-                    Favorilerin
-                  </h3>
-                  {favoriteProducts.length === 0 ? (
-                    <p className="text-[12px] text-neutral-500 mt-1">
-                      Henüz hiçbir ürünü favorilere eklemedin. Beğendiğin
-                      ilanlarda kalbe basarak burada toplayabilirsin.
+        {/* PURCHASES TAB */}
+        {mainTab === "purchases" && (
+          <main className="w-full flex-1 bg-white">
+            {!currentUser ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-neutral-500 mb-4">
+                    Satın alımlarını görmek için giriş yapmalısın.
+                  </p>
+                  <button
+                    onClick={() => openAuth("login")}
+                    className="px-6 py-2.5 rounded-full bg-electric text-white text-sm font-semibold hover:bg-electric/90 transition shadow-sm"
+                  >
+                    Giriş yap
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-4xl mx-auto px-4 py-6">
+                <h1 className="text-2xl font-bold text-black mb-6">Purchases</h1>
+
+                {/* Tabs */}
+                <div className="flex items-center gap-4 border-b border-neutral-200 mb-6">
+                  <button className="pb-3 px-1 text-sm font-medium text-black border-b-2 border-black">
+                    All
+                  </button>
+                  <button className="pb-3 px-1 text-sm font-medium text-neutral-500 hover:text-black transition">
+                    Completed
+                  </button>
+                  <button className="pb-3 px-1 text-sm font-medium text-neutral-500 hover:text-black transition">
+                    Cancelled
+                  </button>
+                </div>
+
+                {/* Purchases List */}
+                <div className="space-y-4">
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-12 text-center">
+                    <svg
+                      className="w-16 h-16 text-neutral-300 mx-auto mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                      />
+                    </svg>
+                    <p className="text-base font-semibold text-black mb-2">
+                      No purchases yet
                     </p>
-                  ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                      {favoriteProducts.map((p) => (
-                        <article
-                          key={p.id}
-                          className="bg-white border border-neutral-200 rounded-2xl overflow-hidden flex flex-col hover:shadow-sm hover:border-neutral-400 transition cursor-pointer"
-                          onClick={() => setDetailProduct(p)}
-                        >
-                          <div className="relative">
-                            <img
-                              src={p.photo}
-                              alt={p.title}
-                              className="w-full aspect-[3/4] object-cover"
-                            />
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleFavorite(p.id);
-                              }}
-                              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 border border-neutral-200 flex items-center justify-center text-[13px] hover:border-neutral-700"
-                            >
-                              {isProductLiked(p.id) ? "♥" : "♡"}
-                            </button>
-                          </div>
-                          <div className="p-2.5 flex-1 flex flex-col">
-                            <h4 className="text-[11px] font-medium line-clamp-2 mb-1">
-                              {p.title}
-                            </h4>
-                            <p className="text-xs font-semibold text-neutral-900 mb-0.5">
-                              {p.price} TL
-                            </p>
-                            <p className="text-[10px] text-neutral-500 mb-1">
-                              {p.category}
-                              {p.condition ? ` • ${p.condition}` : ""}
-                            </p>
-                          </div>
-                        </article>
-                      ))}
+                    <p className="text-sm text-neutral-500">
+                      Items you buy will appear here
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+        )}
+
+        {/* SETTINGS TAB */}
+        {mainTab === "settings" && (
+          <main className="w-full flex-1 bg-white">
+            {!currentUser ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-neutral-500 mb-4">
+                    Ayarları görmek için giriş yapmalısın.
+                  </p>
+                  <button
+                    onClick={() => openAuth("login")}
+                    className="px-6 py-2.5 rounded-full bg-electric text-white text-sm font-semibold hover:bg-electric/90 transition shadow-sm"
+                  >
+                    Giriş yap
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-4xl mx-auto px-4 py-6">
+                <h1 className="text-2xl font-bold text-black mb-6">Settings</h1>
+
+                <div className="space-y-6">
+                  {/* Account Settings */}
+                  <section className="bg-white border border-neutral-200 rounded-lg p-6">
+                    <h2 className="text-lg font-bold text-black mb-4">Account</h2>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-black block mb-2">
+                          First Name
+                        </label>
+                        <input
+                          type="text"
+                          value={currentUser.firstName || ""}
+                          readOnly
+                          className="w-full px-4 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-black block mb-2">
+                          Last Name
+                        </label>
+                        <input
+                          type="text"
+                          value={currentUser.lastName || ""}
+                          readOnly
+                          className="w-full px-4 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-black block mb-2">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={currentUser.email || ""}
+                          readOnly
+                          className="w-full px-4 py-2 border border-neutral-200 rounded-lg bg-neutral-50 text-sm"
+                        />
+                      </div>
                     </div>
-                  )}
-                </section>
+                  </section>
+
+                  {/* Notification Settings */}
+                  <section className="bg-white border border-neutral-200 rounded-lg p-6">
+                    <h2 className="text-lg font-bold text-black mb-4">Notifications</h2>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-black">Email notifications</p>
+                          <p className="text-xs text-neutral-500">Receive updates via email</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" defaultChecked />
+                          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-black">Push notifications</p>
+                          <p className="text-xs text-neutral-500">Receive push notifications</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" defaultChecked />
+                          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Privacy Settings */}
+                  <section className="bg-white border border-neutral-200 rounded-lg p-6">
+                    <h2 className="text-lg font-bold text-black mb-4">Privacy</h2>
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-black">Show profile to everyone</p>
+                          <p className="text-xs text-neutral-500">Make your profile public</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" defaultChecked />
+                          <div className="w-11 h-6 bg-neutral-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-black rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-black"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Danger Zone */}
+                  <section className="bg-white border border-red-200 rounded-lg p-6">
+                    <h2 className="text-lg font-bold text-red-600 mb-4">Danger Zone</h2>
+                    <button
+                      onClick={handleLogout}
+                      className="px-6 py-2.5 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition"
+                    >
+                      Log out
+                    </button>
+                  </section>
+                </div>
+              </div>
+            )}
+          </main>
+        )}
+
+        {/* RESOLUTION CENTER TAB */}
+        {mainTab === "resolution" && (
+          <main className="w-full flex-1 bg-white">
+            {!currentUser ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <p className="text-sm text-neutral-500 mb-4">
+                    Çözüm merkezini görmek için giriş yapmalısın.
+                  </p>
+                  <button
+                    onClick={() => openAuth("login")}
+                    className="px-6 py-2.5 rounded-full bg-electric text-white text-sm font-semibold hover:bg-electric/90 transition shadow-sm"
+                  >
+                    Giriş yap
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="w-full max-w-4xl mx-auto px-4 py-6">
+                <h1 className="text-2xl font-bold text-black mb-6">Resolution Center</h1>
+
+                {/* Tabs */}
+                <div className="flex items-center gap-4 border-b border-neutral-200 mb-6">
+                  <button className="pb-3 px-1 text-sm font-medium text-black border-b-2 border-black">
+                    All Cases
+                  </button>
+                  <button className="pb-3 px-1 text-sm font-medium text-neutral-500 hover:text-black transition">
+                    Open
+                  </button>
+                  <button className="pb-3 px-1 text-sm font-medium text-neutral-500 hover:text-black transition">
+                    Closed
+                  </button>
+                </div>
+
+                {/* Cases List */}
+                <div className="space-y-4">
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-12 text-center">
+                    <svg
+                      className="w-16 h-16 text-neutral-300 mx-auto mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <p className="text-base font-semibold text-black mb-2">
+                      No cases yet
+                    </p>
+                    <p className="text-sm text-neutral-500">
+                      Disputes and issues will appear here
+                    </p>
+                  </div>
+                </div>
+
+                {/* Help Section */}
+                <div className="mt-8 bg-neutral-50 border border-neutral-200 rounded-lg p-6">
+                  <h2 className="text-lg font-bold text-black mb-4">Need Help?</h2>
+                  <p className="text-sm text-neutral-600 mb-4">
+                    If you have an issue with a purchase or sale, you can open a case here.
+                  </p>
+                  <button className="px-6 py-2.5 bg-black text-white rounded-lg text-sm font-semibold hover:bg-neutral-800 transition">
+                    Open a Case
+                  </button>
+                </div>
               </div>
             )}
           </main>
@@ -1162,499 +2014,77 @@ export default function App() {
       </div>
 
       {/* ALT NAV (BOTTOM BAR) */}
-      <nav className="fixed bottom-0 inset-x-0 border-t border-neutral-200 bg-white/95 backdrop-blur-sm z-30">
-        <div className="max-w-6xl mx-auto flex items-center justify-around py-2 text-xs">
-          <button
-            onClick={() => setMainTab("home")}
-            className={`flex flex-col items-center gap-0.5 px-3 ${
-              mainTab === "home" ? "text-neutral-900" : "text-neutral-500"
-            }`}
-          >
-            <span
-              className={`w-5 h-5 rounded-full border ${
-                mainTab === "home"
-                  ? "bg-neutral-900 border-neutral-900"
-                  : "border-neutral-400"
-              }`}
-            />
-            <span>Home</span>
-          </button>
-          <button
-            onClick={() => setMainTab("messages")}
-            className={`flex flex-col items-center gap-0.5 px-3 ${
-              mainTab === "messages" ? "text-neutral-900" : "text-neutral-500"
-            }`}
-          >
-            <span
-              className={`w-5 h-5 rounded-full border ${
-                mainTab === "messages"
-                  ? "bg-neutral-900 border-neutral-900"
-                  : "border-neutral-400"
-              }`}
-            />
-            <span>Mesajlar</span>
-          </button>
-          <button
-            onClick={() => setMainTab("profile")}
-            className={`flex flex-col items-center gap-0.5 px-3 ${
-              mainTab === "profile" ? "text-neutral-900" : "text-neutral-500"
-            }`}
-          >
-            <span
-              className={`w-5 h-5 rounded-full border ${
-                mainTab === "profile"
-                  ? "bg-neutral-900 border-neutral-900"
-                  : "border-neutral-400"
-              }`}
-            />
-            <span>Profil</span>
-          </button>
-        </div>
-      </nav>
+      <BottomNav 
+        mainTab={mainTab} 
+        setMainTab={setMainTab}
+        currentUser={currentUser}
+        requireAuth={requireAuth}
+        resetForm={resetForm}
+        setShowForm={setShowForm}
+      />
 
       {/* ÜRÜN DETAY MODAL */}
       {detailProduct && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-40">
-          <div className="w-full max-w-3xl bg-white border border-neutral-200 rounded-3xl p-4 sm:p-6 flex flex-col sm:flex-row gap-4 relative max-h-[90vh] overflow-hidden">
-            <button
-              onClick={() => setDetailProduct(null)}
-              className="absolute right-4 top-4 text-neutral-400 hover:text-neutral-900 text-xl"
-            >
-              ×
-            </button>
-
-            {/* Foto */}
-            <div className="sm:w-1/2 flex-shrink-0">
-              <img
-                src={detailProduct.photo}
-                alt={detailProduct.title}
-                className="w-full aspect-[3/4] object-cover rounded-2xl border border-neutral-200"
-              />
-            </div>
-
-            {/* Info */}
-            <div className="sm:w-1/2 flex flex-col gap-3 text-sm">
-              <div className="mt-6 sm:mt-0">
-                <h2 className="text-base font-semibold mb-1 line-clamp-2">
-                  {detailProduct.title}
-                </h2>
-                <p className="text-lg font-bold text-neutral-900 mb-1">
-                  {detailProduct.price} TL
-                </p>
-                <p className="text-[11px] text-neutral-500 mb-1">
-                  {detailProduct.category}
-                  {detailProduct.condition
-                    ? ` • ${detailProduct.condition}`
-                    : ""}{" "}
-                  • {detailProduct.distanceKm.toFixed(1)} km yakınında
-                </p>
-                {detailProduct.createdAt && (
-                  <p className="text-[11px] text-neutral-400">
-                    İlan tarihi: {formatDate(detailProduct.createdAt)}
-                  </p>
-                )}
-              </div>
-
-              {detailProduct.ownerName && (
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-7 h-7 rounded-full bg-neutral-900 text-white flex items-center justify-center text-[11px] font-medium">
-                    {detailProduct.ownerName
-                      .split(" ")
-                      .map((w) => w[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-xs font-medium">
-                      {detailProduct.ownerName}
-                    </span>
-                    <span className="text-[10px] text-neutral-500">
-                      Satıcı
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {detailProduct.description && (
-                <div className="mt-2 text-[12px] text-neutral-700 whitespace-pre-wrap">
-                  {detailProduct.description}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="mt-auto flex flex-col gap-2 text-xs">
-                <button
-                  onClick={() => {
-                    setDetailProduct(null);
-                    openPanel(detailProduct, "message");
-                  }}
-                  className="w-full py-2 rounded-full bg-neutral-900 text-white font-semibold hover:bg-neutral-800"
-                >
-                  Mesaj gönder
-                </button>
-                <button
-                  onClick={() => {
-                    setDetailProduct(null);
-                    openPanel(detailProduct, "offer");
-                  }}
-                  className="w-full py-2 rounded-full bg-neutral-100 text-neutral-900 border border-neutral-300 hover:border-neutral-700"
-                >
-                  Teklif ver
-                </button>
-                {detailProduct.takas && (
-                  <button
-                    onClick={() => {
-                      setDetailProduct(null);
-                      openPanel(detailProduct, "takas");
-                    }}
-                    className="w-full py-2 rounded-full bg-white text-neutral-900 border border-neutral-300 hover:border-neutral-700"
-                  >
-                    Takas teklif et
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProductDetailModal
+          product={detailProduct}
+          onClose={() => setDetailProduct(null)}
+          onMessageClick={() => {
+            setDetailProduct(null);
+            openPanel(detailProduct, "message");
+          }}
+          onOfferClick={() => {
+            setDetailProduct(null);
+            openPanel(detailProduct, "offer");
+          }}
+          onTakasClick={() => {
+            setDetailProduct(null);
+            openPanel(detailProduct, "takas");
+          }}
+        />
       )}
 
       {/* ÜRÜN EKLE / DÜZENLE MODAL */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-md bg-white border border-neutral-200 rounded-3xl p-5 relative">
-            <button
-              onClick={() => {
-                setShowForm(false);
-                resetForm();
-              }}
-              className="absolute right-4 top-4 text-neutral-400 hover:text-neutral-900 text-xl"
-            >
-              ×
-            </button>
-
-            <h2 className="text-lg font-semibold mb-1">
-              {editingProductId ? "İlanı düzenle" : "Yeni ilan ekle"}
-            </h2>
-            <p className="text-xs text-neutral-500 mb-4">
-              {editingProductId
-                ? "Fotoğraf, başlık, fiyat ve detayları güncelleyebilirsin."
-                : "Fotoğraf yükle, fiyat ve detayları gir, ilanını yayınla."}
-            </p>
-
-            <div className="space-y-3">
-              <div className="space-y-2">
-                <label className="text-xs text-neutral-700">
-                  Ürün fotoğrafı
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoChange}
-                  className="block w-full text-xs text-neutral-700 file:text-xs file:px-3 file:py-2 file:rounded-full file:border-0 file:bg-black file:text-white file:font-medium file:cursor-pointer"
-                />
-                {form.photo && (
-                  <div className="mt-2">
-                    <p className="text-[11px] text-neutral-500 mb-1">
-                      Ön izleme:
-                    </p>
-                    <img
-                      src={form.photo}
-                      alt="Ön izleme"
-                      className="w-full aspect-square object-cover rounded-2xl border border-neutral-200"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <input
-                type="text"
-                placeholder="Başlık"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                className="w-full px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-              />
-
-              <div className="flex gap-3">
-                <input
-                  type="number"
-                  placeholder="Fiyat (TL)"
-                  value={form.price}
-                  onChange={(e) =>
-                    setForm({ ...form, price: e.target.value })
-                  }
-                  className="flex-1 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                />
-                <select
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value })
-                  }
-                  className="flex-1 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                >
-                  <option value="">Kategori seç</option>
-                  {CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <select
-                value={form.condition}
-                onChange={(e) =>
-                  setForm({ ...form, condition: e.target.value })
-                }
-                className="w-full px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-900"
-              >
-                <option value="">Durum seç</option>
-                {CONDITIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-
-              <textarea
-                rows={3}
-                placeholder="Açıklama (beden, marka, durum, notlar...)"
-                value={form.description}
-                onChange={(e) =>
-                  setForm({ ...form, description: e.target.value })
-                }
-                className="w-full px-3 py-2 rounded-2xl bg-neutral-50 border border-neutral-200 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-900 resize-none"
-              />
-
-              <label className="flex items-center gap-2 text-xs text-neutral-700">
-                <input
-                  type="checkbox"
-                  checked={form.takas}
-                  onChange={(e) =>
-                    setForm({ ...form, takas: e.target.checked })
-                  }
-                  className="accent-black"
-                />
-                Bu ürün için takas tekliflerini kabul ediyorum
-              </label>
-            </div>
-
-            <button
-              onClick={handleAddOrUpdateProduct}
-              className="mt-5 w-full py-2.5 rounded-full bg-black text-white text-sm font-semibold hover:bg-neutral-800 transition"
-            >
-              {editingProductId ? "Değişiklikleri kaydet" : "İlanı yayınla"}
-            </button>
-          </div>
-        </div>
-      )}
+      <ProductFormModal
+        show={showForm}
+        form={form}
+        setForm={setForm}
+        editingProductId={editingProductId}
+        onClose={() => {
+          setShowForm(false);
+          resetForm();
+        }}
+        onSubmit={handleAddOrUpdateProduct}
+        onPhotoChange={handlePhotoChange}
+      />
 
       {/* MESAJ / TEKLİF / TAKAS PANELİ */}
-      {panelMode && activeProduct && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-lg bg-white border border-neutral-200 rounded-3xl p-5 flex flex-col max-h-[90vh]">
-            <header className="flex items-start justify-between mb-3">
-              <div>
-                <p className="text-[11px] text-neutral-500 mb-1 uppercase tracking-wide">
-                  {panelMode === "message" && "Mesaj"}
-                  {panelMode === "offer" && "Teklif"}
-                  {panelMode === "takas" && "Takas"}
-                </p>
-                <h2 className="text-sm font-semibold">{activeProduct.title}</h2>
-                <p className="text-xs text-neutral-700 mt-0.5">
-                  Satıcı fiyatı{" "}
-                  <span className="font-semibold">
-                    {activeProduct.price} TL
-                  </span>
-                </p>
-              </div>
-              <button
-                onClick={closePanel}
-                className="text-neutral-400 hover:text-neutral-900 text-xl"
-              >
-                ×
-              </button>
-            </header>
-
-            <div className="flex-1 rounded-2xl bg-neutral-50 border border-neutral-200 mb-3 p-3 overflow-y-auto space-y-2 text-xs">
-              {activeMessages.length === 0 ? (
-                <p className="text-neutral-500 text-[11px]">
-                  Bu ilan için henüz bir etkileşim yok.
-                </p>
-              ) : (
-                activeMessages.map((m) => (
-                  <div key={m.id} className="flex flex-col items-start gap-0.5">
-                    <span className="text-[10px] text-neutral-500">
-                      {m.author}
-                    </span>
-                    <div className="px-3 py-1.5 rounded-2xl bg-white border border-neutral-200 text-neutral-900">
-                      {m.text}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            <div className="space-y-2">
-              {panelMode === "offer" && (
-                <input
-                  type="number"
-                  placeholder="Teklif (TL)"
-                  value={offerPrice}
-                  onChange={(e) => setOfferPrice(e.target.value)}
-                  className="w-40 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                />
-              )}
-
-              {panelMode === "takas" && (
-                <div className="space-y-2">
-                  {myProducts.length === 0 ? (
-                    <p className="text-amber-600 text-[11px]">
-                      Takas için önce kendi ürünlerini eklemelisin.
-                    </p>
-                  ) : (
-                    <>
-                      <select
-                        value={selectedTakasProductId}
-                        onChange={(e) =>
-                          setSelectedTakasProductId(e.target.value)
-                        }
-                        className="w-full px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                      >
-                        <option value="">Bir ürün seç</option>
-                        {myProducts.map((mp) => (
-                          <option key={mp.id} value={mp.id}>
-                            {mp.title} — {mp.price} TL
-                          </option>
-                        ))}
-                      </select>
-
-                      <input
-                        type="number"
-                        placeholder="Üstüne para (opsiyonel)"
-                        value={offerPrice}
-                        onChange={(e) => setOfferPrice(e.target.value)}
-                        className="w-40 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                      />
-                    </>
-                  )}
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Mesaj ekle (opsiyonel)"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-xs focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                />
-                <button
-                  onClick={sendInteraction}
-                  className="px-4 py-2 rounded-full bg-black text-white text-xs font-semibold hover:bg-neutral-800"
-                >
-                  Gönder
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <MessagePanel
+        show={!!(panelMode && activeProduct)}
+        panelMode={panelMode}
+        activeProduct={activeProduct}
+        activeMessages={activeMessages}
+        inputText={inputText}
+        setInputText={setInputText}
+        offerPrice={offerPrice}
+        setOfferPrice={setOfferPrice}
+        selectedTakasProductId={selectedTakasProductId}
+        setSelectedTakasProductId={setSelectedTakasProductId}
+        myProducts={myProducts}
+        onClose={closePanel}
+        onSend={sendInteraction}
+      />
 
       {/* AUTH MODAL */}
-      {showAuthModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-md bg-white border border-neutral-200 rounded-3xl p-5 relative">
-            <button
-              onClick={closeAuth}
-              className="absolute right-4 top-4 text-neutral-400 hover:text-neutral-900 text-xl"
-            >
-              ×
-            </button>
-
-          <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold">
-                {authMode === "login" ? "Giriş yap" : "Kayıt ol"}
-              </h2>
-              <button
-                className="text-[11px] text-neutral-700 underline"
-                onClick={() =>
-                  setAuthMode((m) => (m === "login" ? "signup" : "login"))
-                }
-              >
-                {authMode === "login"
-                  ? "Hesabın yok mu? Kayıt ol"
-                  : "Hesabın var mı? Giriş yap"}
-              </button>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              {authMode === "signup" && (
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    placeholder="Ad"
-                    value={authForm.firstName}
-                    onChange={(e) =>
-                      handleAuthChange("firstName", e.target.value)
-                    }
-                    className="flex-1 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Soyad"
-                    value={authForm.lastName}
-                    onChange={(e) =>
-                      handleAuthChange("lastName", e.target.value)
-                    }
-                    className="flex-1 px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                  />
-                </div>
-              )}
-
-              <input
-                type="email"
-                placeholder="E-posta"
-                value={authForm.email}
-                onChange={(e) => handleAuthChange("email", e.target.value)}
-                className="w-full px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-              />
-
-              <input
-                type="password"
-                placeholder="Şifre"
-                value={authForm.password}
-                onChange={(e) =>
-                  handleAuthChange("password", e.target.value)
-                }
-                className="w-full px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-              />
-
-              {authMode === "signup" && (
-                <input
-                  type="password"
-                  placeholder="Şifre (tekrar)"
-                  value={authForm.confirmPassword}
-                  onChange={(e) =>
-                    handleAuthChange("confirmPassword", e.target.value)
-                  }
-                  className="w-full px-3 py-2 rounded-full bg-neutral-50 border border-neutral-200 text-sm focus:outline-none focus:ring-1 focus:ring-neutral-900"
-                />
-              )}
-
-              {authError && (
-                <p className="text-[11px] text-red-500">{authError}</p>
-              )}
-            </div>
-
-            <button
-              onClick={handleAuthSubmit}
-              className="mt-4 w-full py-2.5 rounded-full bg-black text-white text-sm font-semibold hover:bg-neutral-800 transition"
-            >
-              {authMode === "login" ? "Giriş yap" : "Kayıt ol"}
-            </button>
-          </div>
-        </div>
-      )}
+      <AuthModal
+        show={showAuthModal}
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        authForm={authForm}
+        handleAuthChange={handleAuthChange}
+        authError={authError}
+        onClose={closeAuth}
+        onSubmit={handleAuthSubmit}
+      />
     </div>
   );
 }
