@@ -4,6 +4,7 @@ import { formatDate, formatTime } from "./utils/helpers";
 import BottomNav from "./components/BottomNav";
 import NavBar from "./components/NavBar";
 import ProductGrid from "./components/ProductGrid";
+import ProductCard from "./components/ProductCard";
 import FiltersBar from "./components/FiltersBar";
 import ProductDetailModal from "./components/ProductDetailModal";
 import ProductFormModal from "./components/ProductFormModal";
