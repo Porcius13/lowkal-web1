@@ -5,6 +5,7 @@ export default function ProductFormModal({
   form,
   setForm,
   editingProductId,
+  formError,
   onClose,
   onSubmit,
   onPhotoChange,
@@ -112,6 +113,12 @@ export default function ProductFormModal({
             Bu ürün için takas tekliflerini kabul ediyorum
           </label>
         </div>
+
+        {formError && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs text-red-600">{formError}</p>
+          </div>
+        )}
 
         <button
           onClick={onSubmit}

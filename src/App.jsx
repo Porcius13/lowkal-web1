@@ -61,6 +61,7 @@ export default function App() {
   const [filterUnread, setFilterUnread] = useState(false); // Okunmamış filtreleme
 
   const [detailProduct, setDetailProduct] = useState(null); // ürün detay modali
+  const [formError, setFormError] = useState(""); // Form hata mesajı
 
   // -------------------- LOAD FROM LOCALSTORAGE --------------------
   useEffect(() => {
@@ -473,14 +474,34 @@ export default function App() {
       condition: "",
     });
     setEditingProductId(null);
+    setFormError("");
   };
 
   const handlePhotoChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    
+    // Dosya tipi kontrolü
+    if (!file.type.startsWith('image/')) {
+      setFormError("Lütfen geçerli bir resim dosyası seçin");
+      return;
+    }
+    
+    // Dosya boyutu kontrolü (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setFormError("Resim boyutu 5MB'dan küçük olmalıdır");
+      return;
+    }
+    
     const reader = new FileReader();
+    reader.onerror = () => {
+      setFormError("Resim yüklenirken bir hata oluştu");
+    };
     reader.onloadend = () => {
-      setForm((prev) => ({ ...prev, photo: reader.result || "" }));
+      if (reader.result) {
+        setForm((prev) => ({ ...prev, photo: reader.result }));
+        setFormError(""); // Başarılı yükleme sonrası hatayı temizle
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -627,19 +648,34 @@ export default function App() {
 
   // -------------------- PRODUCT ACTIONS --------------------
   const handleAddOrUpdateProduct = () => {
+    setFormError(""); // Hata mesajını temizle
+    
     if (!currentUser) {
       requireAuth("signup");
       return;
     }
 
-    if (
-      !form.photo ||
-      !form.title ||
-      !form.price ||
-      !form.category ||
-      !form.condition
-    )
+    // Validation
+    if (!form.photo) {
+      setFormError("Lütfen bir ürün fotoğrafı yükleyin");
       return;
+    }
+    if (!form.title || form.title.trim() === "") {
+      setFormError("Lütfen ürün başlığı girin");
+      return;
+    }
+    if (!form.price || Number(form.price) <= 0) {
+      setFormError("Lütfen geçerli bir fiyat girin");
+      return;
+    }
+    if (!form.category) {
+      setFormError("Lütfen bir kategori seçin");
+      return;
+    }
+    if (!form.condition) {
+      setFormError("Lütfen ürün durumunu seçin");
+      return;
+    }
 
     if (editingProductId) {
       setProducts((prev) =>
@@ -2049,9 +2085,11 @@ export default function App() {
         form={form}
         setForm={setForm}
         editingProductId={editingProductId}
+        formError={formError}
         onClose={() => {
           setShowForm(false);
           resetForm();
+          setFormError("");
         }}
         onSubmit={handleAddOrUpdateProduct}
         onPhotoChange={handlePhotoChange}
