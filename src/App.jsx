@@ -273,7 +273,8 @@ export default function App() {
           setFilterTakasOnly(savedUi.filterTakasOnly);
         if (["newest", "priceLow", "priceHigh"].includes(savedUi.sortMode))
           setSortMode(savedUi.sortMode);
-        if (["home", "search", "messages", "activity", "profile"].includes(savedUi.mainTab))
+        const validTabs = ["home", "search", "messages", "activity", "profile", "selling-hub", "purchases", "settings", "resolution"];
+        if (validTabs.includes(savedUi.mainTab))
           setMainTab(savedUi.mainTab);
         if (typeof savedUi.searchText === "string")
           setSearchText(savedUi.searchText);
@@ -327,6 +328,11 @@ export default function App() {
       })
     );
   }, [radius, filterTakasOnly, sortMode, mainTab, searchText]);
+
+  // Tab değiştiğinde sayfanın en üstüne scroll et
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [mainTab]);
 
   // -------------------- MEMO DATA --------------------
   const myProducts = useMemo(() => {
